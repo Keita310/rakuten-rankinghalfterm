@@ -15,7 +15,7 @@ class Items extends Model
      */
     public function category()
     {
-        return $this->hasOne(Category::class, 'cate_id', 'cate_id');
+        return $this->hasOne(Category::class, 'id', 'cate_id');
     }
 
     /**
@@ -24,6 +24,6 @@ class Items extends Model
      */
     public function shop()
     {
-        return $this->hasOne(Shop::class, 'shop_id', 'shop_id');
+        return $this->hasOne(Shop::class, 'id', 'shop_id');
     }
 }

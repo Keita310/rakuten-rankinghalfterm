@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Actions\ScrapingUtil;
 use KubAT\PhpSimple\HtmlDomParser;
+use App\Models\Items;
 
 class Shop extends Model
 {
@@ -17,18 +18,25 @@ class Shop extends Model
      */
     public function items()
     {
-        return $this->hasMany(Items::class, 'shop_id', 'shop_id');
+        return $this->hasMany(Items::class, 'shop_id');
     }
 
     /**
      * ショップ毎で抽出する
      * @return array
      */
-    public static function get($shopCode = null)
+    public static function get($cateSeason, $shopCode = null)
     {
         $where = ($shopCode) ? ['shop_code' => $shopCode] : [];
+        $itemIds = Items::whereHas('category', function($query) use ($cateSeason) {
+                $query->where(['cate_season' => $cateSeason]);
+            })
+            ->pluck('id');
         return self::where($where)
-            ->with('items', 'items.category')
+            ->whereHas('items', function($query) use ($itemIds) {
+                $query->whereIn('id', $itemIds);
+            })
+            ->with(['items', 'items.category'])
             ->get();
     }
 
@@ -70,9 +78,9 @@ class Shop extends Model
         }
         if ($mailto) {
             $shopMail = $mailto->href;
-            $shopMail = urldecode($shopMail);
             $shopMail = str_replace('mailto:', '', $shopMail);
             $shopMail = preg_replace('/(^.*?)(\?).*$/', '$1', $shopMail);
+            $shopMail = urldecode($shopMail);
             $shopMail = preg_replace('/(^.*?)(,).*$/', '$1', $shopMail);
         } else {
             $shopMail = null;
