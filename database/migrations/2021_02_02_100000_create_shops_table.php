@@ -15,7 +15,7 @@ class CreateShopsTable extends Migration
     {
         Schema::create('shops', function (Blueprint $table) {
             $table->bigInteger('id', true);
-            $table->string('shop_id', 255);
+            $table->string('shop_code', 255);
             $table->string('shop_url', 255);
             $table->string('shop_compony', 255);
             $table->string('shop_name', 255);

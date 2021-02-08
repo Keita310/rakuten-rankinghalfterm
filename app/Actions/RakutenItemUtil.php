@@ -48,6 +48,12 @@ class RakutenItemUtil
         if (self::isBookUrl($url)) {
             return self::getBookPageByItemUrl($url);
         }
+        if (self::isFashionUrl($url)) {
+            return self::getFashionPageByItemUrl($url);
+        }
+        if (self::isBicUrl($url)) {
+            return self::getBicPageByItemUrl($url);
+        }
         return self::getDefaultPageByItemUrl($url);
     }
 
@@ -63,16 +69,28 @@ class RakutenItemUtil
         if (!$content) {
             return [];
         }
-
         $dom = HtmlDomParser::str_get_html($content);
+        if ($dom->find('title', 0)->innertext === '【楽天市場】エラー') {
+            return [];
+        }
         $params1 = self::getParams1($content);
         $params2 = self::getParams2($dom);
+        if (!$params2) {
+            return [];
+        }
         $code = StringUtil::toItemCode($url);
         $index = self::cartIndex($content, $code);
         $cartDom = self::cartDom($dom, $index);
+        if (!$cartDom) {
+            return [];
+        }
 
         $reviewCount = (int)$params2['irevnum'][$index];
         $reviewAverage = self::reviewAverage($reviewCount, $params1, $index);
+        $asurakuFlag = '0';
+        if (isset($params2['asuraku_item_flg'])) {
+            $asurakuFlag = $params2['asuraku_item_flg'][$index];
+        }
 
         $item = array_combine(self::FORMAT, [
             $code,
@@ -85,7 +103,7 @@ class RakutenItemUtil
             $reviewCount,
             $reviewAverage,
             ($dom->find('#rakutenLimitedId_aroundCart', $index)->find('.soldout_msg', 0)) ? true : false,
-            $params2['asuraku_item_flg'][$index],
+            $asurakuFlag,
             ($cartDom->find('.shippingCost_free', 0)) ? '0' : '1',
             1,//販売可能商品とする
         ]);
@@ -114,6 +132,9 @@ class RakutenItemUtil
         $content = preg_replace('/\r|\n/', '', $content);
 
         $dom = HtmlDomParser::str_get_html($content);
+
+        $image = $dom->find('[property="og:image"]', 0)->content;
+        $image = preg_replace('/(^.*?)\?.*$/', '$1', $image);
         $stock = $dom->find('#ratCustomParameters', 0)->value;
         $stock = (strpos($stock, 'instock') === false);
         $reviewCount = $dom->find('[itemprop="reviewCount"]', 0)->innertext;
@@ -124,12 +145,103 @@ class RakutenItemUtil
             $dom->find('#ratItemName', 0)->value,
             null,
             (int)$dom->find('#ratItemPrice', 0)->value,
-            'https:' . $dom->find('.main-js-slick__item a', 0)->href,
+            $image,
             $url,
             1,
             $reviewCount,
             $dom->find('[itemprop="ratingValue"]', 0)->innertext,
             $stock,
+            null,
+            null,
+            null,
+        ]);
+
+        $dom->clear();
+        return $item;
+    }
+
+    /**
+     * 楽天ファッションページの商品データ取得
+     * @param $url
+     * @return array
+     */
+    private static function getFashionPageByItemUrl($url)
+    {
+        // 楽天ファッションのURLを新フォーマットに
+        $url = self::newFashionUrl($url);
+        $content = ScrapingUtil::get($url);
+        $content = preg_replace('/\r|\n/', '', $content);
+        if (!$content) {
+            return [];
+        }
+
+        $dom = HtmlDomParser::str_get_html($content);
+        if ($dom->find('.errorpage-title', 0)) {
+            return [];
+        }
+
+        $image = 'https:' . $dom->find('#fitsme_launcher', 0)->{'data-imageurl'};
+        $image = preg_replace('/(^.*?)\?.*$/', '$1', $image);
+
+        $item = array_combine(self::FORMAT, [
+            $dom->find('.item-sku-actions', 0)->{'data-model'},
+            $dom->find('.item-name', 0)->innertext,
+            null,
+            (int)$dom->find('#ratPrice', 0)->value,
+            $image,
+            $url,
+            1,
+            null,
+            null,
+            true,
+            null,
+            null,
+            null,
+        ]);
+
+        $dom->clear();
+        return $item;
+    }
+
+    /**
+     * 楽天ビックカメラページの商品データ取得
+     * @param $url
+     * @return array
+     */
+    private static function getBicPageByItemUrl($url)
+    {
+        // 楽天ビックカメラのURLを新フォーマットに
+        $url = self::newBicUrl($url);
+        $content = ScrapingUtil::get($url);
+        $content = preg_replace('/\r|\n/', '', $content);
+        if (!$content) {
+            return [];
+        }
+        $dom = HtmlDomParser::str_get_html($content);
+        if (!$dom) {
+            return [];
+        }
+        if ($dom->find('.errorpage-title', 0)) {
+            return [];
+        }
+
+        $susumeruArea->find('.susumeruArea', 0);
+        dd($susumeruArea);
+
+        $image = 'https:' . $dom->find('#fitsme_launcher', 0)->{'data-imageurl'};
+        $image = preg_replace('/(^.*?)\?.*$/', '$1', $image);
+
+        $item = array_combine(self::FORMAT, [
+            $dom->find('.item-sku-actions', 0)->{'data-model'},
+            $dom->find('.item-name', 0)->innertext,
+            null,
+            (int)$dom->find('#ratPrice', 0)->value,
+            $image,
+            $url,
+            1,
+            null,
+            null,
+            true,
             null,
             null,
             null,
@@ -184,7 +296,11 @@ class RakutenItemUtil
      */
     private static function getParams2($dom)
     {
-        $param = $dom->find('#ratCustomParameters', 0)->value;
+        $ratCustomParameters = $dom->find('#ratCustomParameters', 0);
+        if (!$ratCustomParameters) {
+            return [];
+        }
+        $param = $ratCustomParameters->value;
         $param = str_replace("'", '"', $param);
         $param = json_decode($param, true);
         return $param;
@@ -242,6 +358,36 @@ class RakutenItemUtil
     }
 
     /**
+     * 楽天ファッションページのURLを新フォーマットにする
+     * @param $url
+     * @return string
+     */
+    private static function newFashionUrl($url)
+    {
+        preg_match('/(^.*?)(item.rakuten.co.jp\/stylife\/)(.*?)(\/)/', $url, $match);
+        if (empty($match)) {
+            return $url;
+        }
+        $code = strtoupper($match[3]);
+        return "{$match[1]}brandavenue.rakuten.co.jp/item/{$code}/";
+    }
+
+    /**
+     * 楽天ファッションページのURLか否か
+     * @param $url
+     * @return array
+     */
+    private static function isFashionUrl($url)
+    {
+        // 楽天ファッションのURLを新フォーマットに
+        $url = self::newFashionUrl($url);
+        if (strpos($url, 'brandavenue.rakuten.co.jp/item') !== false) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 楽天ブックページのURLを新フォーマットにする
      * @param $url
      * @return string
@@ -261,6 +407,31 @@ class RakutenItemUtil
         // 楽天BOOKのURLを新フォーマットに
         $url = self::newBoolUrl($url);
         if (strpos($url, 'books.rakuten.co.jp/rb') !== false) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 楽天ビックカメラページのURLを新フォーマットにする
+     * @param $url
+     * @return string
+     */
+    private static function newBicUrl($url)
+    {
+        return str_replace('item.rakuten.co.jp/biccamera', 'biccamera.rakuten.co.jp/item', $url);
+    }
+
+    /**
+     * 楽天ビックカメラページのURLか否か
+     * @param $url
+     * @return array
+     */
+    private static function isBicUrl($url)
+    {
+        // 楽天ビックカメラのURLを新フォーマットに
+        $url = self::newBoolUrl($url);
+        if (strpos($url, 'biccamera.rakuten.co.jp/item') !== false) {
             return true;
         }
         return false;

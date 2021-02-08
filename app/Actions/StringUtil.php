@@ -25,12 +25,12 @@ class StringUtil
     }
 
     /**
-     * URLからshopIdを取得する
+     * URLからshopCodeを取得する
      *
      * @param $url URL文字列
-     * @return string shopId文字列
+     * @return string shopCode文字列
      */
-    public static function toShopId($url)
+    public static function toShopCode($url)
     {
         return preg_replace('/(^.*?.jp)(\/user\/|\/gold\/|\/)(.*?)(\/$|\/.*$|$)/', '$3', $url);
     }

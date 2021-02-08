@@ -15,10 +15,10 @@ class CreateCategoriesTable extends Migration
     {
         Schema::create('categories', function (Blueprint $table) {
             $table->bigInteger('id', true);
-            $table->string('cate_id', 255);
+            $table->string('cate_code', 255);
             $table->string('cate_url', 255);
-            $table->string('cate_name', 255);
             $table->string('cate_season', 255);
+            $table->string('cate_name', 255);
             $table->dateTime('cate_period_start');
             $table->dateTime('cate_period_end');
             $table->timestamps();
