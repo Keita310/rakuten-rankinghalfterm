@@ -17,5 +17,3 @@ use App\Http\Controllers\Api\RankinghalftermController;
 Route::get('/', function () {
     return view('welcome');
 });
-
-Route::get('/ranking', [RankinghalftermController::class, 'index'])->name('index');
