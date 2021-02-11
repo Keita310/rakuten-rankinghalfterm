@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Actions\ScrapingUtil;
 use KubAT\PhpSimple\HtmlDomParser;
 use App\Models\Items;
 
 class Shop extends Model
 {
+    use HasFactory;
+
     protected $guarded = array('id');
     protected $fillable = [];
 

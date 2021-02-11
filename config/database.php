@@ -91,6 +91,16 @@ return [
             'prefix_indexes' => true,
         ],
 
+        // test用に追加。メモリで一時的に利用するので実DBに影響無し
+        'testing' => [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'options'  => [
+                PDO::ATTR_PERSISTENT => false,
+            ]
+        ],
+
     ],
 
     /*
