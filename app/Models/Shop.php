@@ -25,22 +25,28 @@ class Shop extends Model
     }
 
     /**
-     * ショップ毎で抽出する
+     * ショップ毎で抽出する(もっとよい抽出にしたい)
      * @return array
      */
     public static function get($cateSeason, $shopCode = null)
     {
+        // 指定cate_seasonが含まれているshopだけに絞り込む
         $where = ($shopCode) ? ['shop_code' => $shopCode] : [];
-        $itemIds = Items::whereHas('category', function($query) use ($cateSeason) {
+        $shops = self::where($where)
+            ->with(['items', 'items.category'])
+            ->whereHas('items.category', function($query) use ($cateSeason) {
                 $query->where(['cate_season' => $cateSeason]);
             })
-            ->pluck('id');
-        return self::where($where)
-            ->whereHas('items', function($query) use ($itemIds) {
-                $query->whereIn('id', $itemIds);
-            })
-            ->with(['items', 'items.category'])
-            ->get();
+            ->get()
+            ->toArray();
+        // 指定cate_seasonの商品だけにフィルタリングする
+        foreach ($shops as &$shop) {
+            $shop['items'] = array_filter($shop['items'], function ($item) use ($cateSeason) {
+                return $item['category']['cate_season'] === $cateSeason;
+            });
+        }
+
+        return $shops;
     }
 
     /**
